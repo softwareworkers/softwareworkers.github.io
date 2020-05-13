@@ -1,0 +1,130 @@
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>redis</title>
+</head>
+<body>
+redis的存在意义
+redis一般用作告诉缓存，用来降低数据库的io读压力。
+我们常用的mysql数据库，是文件数据库，虽然mysql也加了缓冲区，但是缓冲区的内容毕竟有有限的，并且支持查询到数据（热数据）或者数据表里面不变动的数据。
+一般的应用架构都应该有三层（接口层---缓存层---db层）。
+当查询缓存查询不到的时候才去查询db。
+
+如何判断是否适合做缓存
+1、读的数据量比较大，其实也就是缓存命中率会高。假设你加了缓存，而缓存命中率非常低就不适合做缓存.
+2、对一致性要求不严格；允许存在一定的延迟。
+
+
+redis的数据结构：
+hashmap，key-value的数据结构
+
+redis与内存缓存的区别：
+a、不支持数据持久化。redis可以将缓存数据持久化到硬盘上，当重启redis的时候自动加载缓存数据。
+b、不支持分布式，redis可以多个应用公用一个缓存数据，内存缓存只能单个应用之间共享缓存信息。
+c、不支持主从。redis可以支持主从复制，但是内存缓存不可以。
+d、支持的数据类型更强大（例如string，map，list，zset，publish，subscribe）
+
+redis为啥快？
+a、基于内存操作
+b、数据结构是hashmap类型，时间复杂度是O1
+c、内部命令处理器是单线程，不存在上下文切换等开销。
+
+
+redis的常用数据类型：
+a、String类型，最大存储512M内容，存储字符串内容，二进制安全的。 set k1 v1 get k1
+（二进制安全的意思就是，只关心二进制化的字符串，不关心具体格式，只会严格的按照二进制的数据存取，不会妄图以某种特殊格式解析数据。）
+b、Hash类型，适合存储对象;
+hmset k2 name haha
+hmset k2 age 20
+hmset k2 email    haha@126.com
+hmget k2 name
+c、List类型，列表，按照String的插入顺序排序，其顺序为后进先出，具有堆栈的特性。
+操作：lpop lpush  rpush  rpop
+阻塞list：blpop blpush brpush brpop
+d、Set类型，可以根据set做交集、并集、差集
+sadd g_1 v1 v2 v3 v4
+sadd g_2 v3 v5 v7
+smembers g_1
+f、ScoreSet 带分数的set，会按照分数进行排序。
+zadd s_1  10  v1  20 v2 15 v3
+zscore s_1
+zrangebyscore s_1 11 18
+
+
+redis的持久化：
+定义：持久化，即将数据永久存储，而不因断电或其他复杂的外部环境影响数据的完整性。
+a、redis的持久化机制是什么？
+b、redis持久化的两种方式，rdb和aof
+RDB：
+a、通过保存某个时间节点的全量数据来实现持久化，当恢复数据时直接通过RDB文件中的快照将数据恢复。
+b、创建与载入的两种方式：
+save，会阻塞服务端的进程，直到RDB文件创建完成。
+bgsave，会fork出来一个子进程来创建RDB文件，不阻塞服务器进程。子进程创建完成后会向主进程发送信号。
+也可以通过redis.conf来定时备份rdb文件（save 900 1 表示900秒（15分钟）内有1个更改）
+c、缺点：
+内存数据全量同步，数据量大的状况下，会由于 I/O 而严重影响性能。
+可能会因为 Redis 宕机而丢失从当前至最近一次快照期间的数据。
+AOF：
+a、通过AOF持久化是通过Redis的写状态来记录数据库的。
+b、AOF记录除查询外的所有变更数据库状态的命令。
+c、以增量的形式追加到AOF文件尾部。
+Redis 4.0 之后推出了此种持久化方式，RDB 作为全量备份，AOF 作为增量备份，并且将此种方式作为默认方式使用。
+
+redis的主从同步原理：
+定义：
+通过主从同步保证数据的弱一致性和最终一致性。
+Master和Slave并不一定要即时同步，但是在一段时间后Master和Slave的数据是趋向于同步的，这就是最终一致性。
+全同步：
+Slave 发送 Sync 命令到 Master。
+Master 启动一个后台进程，将 Redis 中的数据快照保存到文件中。
+Master 将保存数据快照期间接收到的写命令缓存起来。
+Master 完成写文件操作后，将该文件发送给 Slave。
+使用新的 AOF 文件替换掉旧的 AOF 文件。
+Master 将这期间收集的增量写命令发送给 Slave 端。
+增量同步过程如下
+Master 接收到用户的操作指令，判断是否需要传播到 Slave。
+将操作记录追加到 AOF 文件。
+将操作传播到其他 Slave：对齐主从库；往响应缓存写入指令。
+将缓存中的数据发送给 Slave。
+
+redis的哨兵模式：
+主从模式弊端：当 Master 宕机后，Redis 集群将不能对外提供写入操作。
+Redis Sentinel 可解决这一问题。
+解决主从同步 Master 宕机后的主从切换问题：
+监控：检查主从服务器是否运行正常。
+提醒：通过 API 向管理员或者其它应用程序发送故障通知。
+自动故障迁移：主从切换（在 Master 宕机后，将其中一个 Slave 转为 Master，其他的 Slave 从该节点同步数据）
+
+redis集群：
+1、分片
+a、按照某种规则去划分数据，分散存储在多个结点上。
+b、通过将数据分散到多个redis服务器上，来降低单台redis的压力。
+c、分片算法：一致性哈希算法。
+
+redis应用1：
+使用redis实现分布式锁:
+最初使用setNx（set if not exist），如果返回1则认为获取到锁。然后设置过期时间，执行方法。
+问题:假设获取到锁之后，还没有来得及设置过期时间，程序被kill -9 了。则会导致锁一致存在从而无法获取锁。
+出现这样的根本原因就是原子性（其实这个sql的原子性很相似，sql是通过undo log来实现原子性的）。
+解决:在redis2.6的高版本以后，redis支持将setnx和expireTime放到一个set方法里面，作为一个原子操作。
+jedis.set(key,value,"NX","EX",10);
+设置成功，返回OK，设置失败返回null;
+
+redis的应用2：
+如何实现异步队列：
+1、使用redis的List存储，可以通过rpush，lpop来实现异步队列。
+问题：lpop不会等待队列中有值才消费，可以通过应用层的sleep来实现。
+2、使用redis的Blpop，来获取list队列的数据
+缺点：按照此种方法，我们生产后的数据只能提供给各个单一消费者消费。能否实现生产一次就能让多个消费者消费呢？
+3、Pub/Sub：主题订阅者模式
+publish test hello
+subscribe test
+subscribe test
+Pub/Sub模式的缺点：消息的发布是无状态的，无法保证可达。对于发布者来说，消息是“即发即失”的。
+4、结合zset可以做延迟队列（例如延迟5秒执行）
+zadd t1 10 user 100 admin 1000 superadmin  100000 dhpei
+zrange
+zrangebyscore
+每次按照分数降序获取1条数据，然后判断是否到达延迟时间，如果到了就。
+</body>
+</html>
