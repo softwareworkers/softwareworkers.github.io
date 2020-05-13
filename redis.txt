@@ -1,9 +1,3 @@
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>redis</title>
-</head>
-<body>
 redis的存在意义
 redis一般用作告诉缓存，用来降低数据库的io读压力。
 我们常用的mysql数据库，是文件数据库，虽然mysql也加了缓冲区，但是缓冲区的内容毕竟有有限的，并且支持查询到数据（热数据）或者数据表里面不变动的数据。
@@ -126,5 +120,3 @@ zadd t1 10 user 100 admin 1000 superadmin  100000 dhpei
 zrange
 zrangebyscore
 每次按照分数降序获取1条数据，然后判断是否到达延迟时间，如果到了就。
-</body>
-</html>
