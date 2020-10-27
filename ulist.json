@@ -1,0 +1,17 @@
+{
+  "code":"000000",
+  "data":{
+    "ulist":[
+      {
+        "id":1,
+        "name":"李磊",
+        "email":"lilei@126.com"
+      },
+      {
+        "id":2,
+        "name":"李华",
+        "email":"lihua@126.com"
+      }
+    ]
+  }
+}
